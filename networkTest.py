@@ -26,11 +26,16 @@ def hierarchy_pos(G, root, width=1.0, vert_gap=0.2, vert_loc=0, xcenter=0.5, pos
 
 
 def same_subnet(ip1, ip2, mask="255.255.255.224"):
-    # Função simples para checar se IPs estão na mesma subrede
-    import ipaddress
-    net1 = ipaddress.IPv4Network(f"{ip1}/{mask}", strict=False)
-    net2 = ipaddress.IPv4Network(f"{ip2}/{mask}", strict=False)
-    return net1.network_address == net2.network_address
+    try:
+        if "N/A" in (ip1, ip2):
+                return False
+        # Função simples para checar se IPs estão na mesma subrede
+        import ipaddress
+        net1 = ipaddress.IPv4Network(f"{ip1}/{mask}", strict=False)
+        net2 = ipaddress.IPv4Network(f"{ip2}/{mask}", strict=False)
+        return net1.network_address == net2.network_address
+    except Exception:
+        return False
 
 def find_path_same_subnet(G, origem, destino):
     # Retorna o caminho mais curto entre origem e destino considerando só hosts e switches (sem roteadores)
