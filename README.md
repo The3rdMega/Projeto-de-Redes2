@@ -1,0 +1,1 @@
+Este repositório contém uma estrutura de Redes criada no programa Cisco Packet Tracer e uma tentativa de implementar os comandos XPing e XTraceroute em python para percorrer esta estrutura utilizando NetworkX
