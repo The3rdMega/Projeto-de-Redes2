@@ -89,13 +89,11 @@ def next_hop(router, destino_ip, routing_tables):
 """
 
 def next_hop(router, destino_ip, routing_tables):
-    print(f"[DEBUG] next_hop(): router={router}, destino_ip={destino_ip}")
     table = routing_tables.get(router, {})
     for subnet, neighbor in table.items():
         try:
             net = ipaddress.IPv4Network(subnet)
             if ipaddress.IPv4Address(destino_ip) in net:
-                print(f"[DEBUG] → Destino {destino_ip} está na subrede {subnet}, próximo salto: {neighbor}")
                 return neighbor
         except Exception as e:
             print(f"[DEBUG] ⚠️ Erro analisando subnet {subnet}: {e}")
@@ -140,7 +138,7 @@ def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask
             if not avancou:
                 return None
         return hops
-
+    """
     def caminho_valido(G, start, end, routing_tables):
         destino_ip = get_node_ip(G, end)  # IP genérico do destino
         
@@ -205,6 +203,76 @@ def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask
             elif tipo_atual == "host":
                 return None
 
+        return hops
+    """
+    def caminho_valido(G, start, end, routing_tables):
+
+        destino_ip = get_node_ip(G, end)
+        
+        atual = start
+        visitados = set()
+        hops = []
+
+        ip_start = get_node_ip(G, start)
+        ip_end = destino_ip
+
+        #if same_subnet(ip_start, ip_end, subnet_mask):
+
+            #return caminho_mesma_subnet(G, start, end)
+
+        if G.nodes[atual]['type'] == "host":
+            vizinhos = list(G.neighbors(atual))
+            if not vizinhos:
+
+                return None
+            anterior = atual
+            atual = vizinhos[0]
+            hops.append((atual, get_node_ip(G, atual, anterior)))
+            visitados.add(start)
+        else:
+            anterior = None
+
+        while atual != end:
+            if atual in visitados:
+                print(f"[DEBUG] Loop detectado em {atual}. Retornando None.")
+                return None
+            visitados.add(atual)
+
+            tipo_atual = G.nodes[atual]['type']
+
+            if tipo_atual in ("switch", "host") and end in G.neighbors(atual):
+                hops.append((end, get_node_ip(G, end, atual)))
+                break
+
+            if tipo_atual == "switch":
+                encaminhado = False
+                for viz in G.neighbors(atual):
+                    tipo_viz = G.nodes[viz]['type']
+                    if tipo_viz in ("router", "switch") and viz not in visitados:
+                        anterior = atual
+                        atual = viz
+                        hops.append((atual, get_node_ip(G, atual, anterior)))
+                        encaminhado = True
+                        break
+                if not encaminhado:
+                    print(f"[DEBUG] Switch {atual} não conseguiu encaminhar. Retornando None.")
+                    return None
+
+            elif tipo_atual == "router":
+                if end in G.neighbors(atual):
+                    hops.append((end, get_node_ip(G, end, atual)))
+                    break
+                nh = next_hop(atual, destino_ip, routing_tables)
+                if not nh:
+                    print(f"[DEBUG] Roteador {atual} não encontrou next hop para {destino_ip}. Retornando None.")
+                    return None
+                anterior = atual
+                atual = nh
+                hops.append((atual, get_node_ip(G, atual, anterior)))
+
+            elif tipo_atual == "host":
+                print(f"[DEBUG] Erro de lógica: nó {atual} é host e está no meio do caminho. Retornando None.")
+                return None
         return hops
 
     caminho_ida = caminho_valido(G, origem, destino, routing_tables)
