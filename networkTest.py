@@ -80,9 +80,7 @@ def next_hop(router, destino_ip, routing_tables):
             if ipaddress.IPv4Address(destino_ip) in net:
                 return neighbor
         except Exception as e:
-            print(f"[DEBUG] ⚠️ Erro analisando subnet {subnet}: {e}")
-    print(f"[DEBUG] → Nenhuma rota encontrada para {destino_ip}")
-    return None 
+            return None 
 
 
 def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask="255.255.255.224"):
@@ -131,7 +129,7 @@ def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask
                 elif end in G.neighbors(atual):
                     novo_hops.append((end, get_node_ip(G, end, atual)))
                     return novo_hops
-        print(f"[DEBUG] Caminho de {start} para {end} não encontrado.")
+
         return None
 
 
