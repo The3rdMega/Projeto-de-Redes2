@@ -4,6 +4,16 @@ import time
 import random
 import ipaddress
 
+def calcular_delay_por_tipo(tipo_enlace):
+    if tipo_enlace == "ethernet":
+        return random.randint(1, 5)
+    elif tipo_enlace == "fiber":
+        return random.randint(1, 2)
+    else:
+        return random.randint(500, 500)  # valor genérico para tipos desconhecidos
+
+
+
 
 def get_node_ip(G, node, vizinho=None, default_mask="255.255.255.224"):
     ip = G.nodes[node].get('ip', 'N/A')
@@ -299,7 +309,7 @@ def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask
         print(f" -> {hop} ({ip})")
     print(f"Resposta de {destino}: Sucesso\n")
 
-
+"""
 def xtraceroute_routing_probe_updated(G, origem, destino, routing_tables):
     try:
         destino_ip = get_node_ip(G, destino)
@@ -317,11 +327,8 @@ def xtraceroute_routing_probe_updated(G, origem, destino, routing_tables):
                 return
             anterior = origem
             for hop in path[1:]:  # pula origem
-                #delay = random.randint(2, 6)
-                #total_delay += delay
                 probes = [random.randint(2, 6) for _ in range(3)]
                 total_delay = max(probes)
-                #print(total_delay)
                 ip = get_node_ip(G, hop, anterior)
                 print(f"{hop_num}: {hop} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
                 hop_num += 1
@@ -439,6 +446,123 @@ def xtraceroute_routing_probe_updated(G, origem, destino, routing_tables):
 
     except Exception as e:
         print(f"Erro durante o traceroute: {e}")
+"""
+def xtraceroute_routing_probe_updated(G, origem, destino, routing_tables):
+    try:
+        destino_ip = get_node_ip(G, destino)
+        origem_ip = get_node_ip(G, origem)
+        total_delay = 0
+        hop_num = 1
+
+        print(f"XTraceroute de {origem} ({origem_ip}) até {destino} ({destino_ip})")
+        print("Saltos:")
+
+        if same_subnet(origem_ip, destino_ip):
+            path = find_path_same_subnet(G, origem, destino)
+            if path is None:
+                print(f"⚠️ Nenhum caminho direto na subrede entre {origem} e {destino}")
+                return
+            anterior = origem
+            for hop in path[1:]:
+                tipo_enlace = G.edges[anterior, hop].get("type", "")
+                probes = [calcular_delay_por_tipo(tipo_enlace) for _ in range(3)]
+                total_delay = max(probes)
+                ip = get_node_ip(G, hop, anterior)
+                print(f"{hop_num}: {hop} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+                hop_num += 1
+                anterior = hop
+            print("\nRota concluída com sucesso.\n")
+            return
+
+        atual = origem
+        visitados = set()
+        anterior = None
+
+        if G.nodes[atual]['type'] == "host":
+            vizinhos = list(G.neighbors(atual))
+            if not vizinhos:
+                print("⚠️ Host sem vizinhos.")
+                return
+            proximo = vizinhos[0]
+            tipo_enlace = G.edges[atual, proximo].get("type", "")
+            probes = [calcular_delay_por_tipo(tipo_enlace) for _ in range(3)]
+            total_delay = max(probes)
+            ip = get_node_ip(G, proximo, atual)
+            print(f"{hop_num}: {proximo} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+            hop_num += 1
+            anterior = atual
+            atual = proximo
+            visitados.add(atual)
+
+        while atual != destino:
+            if atual in visitados:
+                print(f"⚠️ Roteamento em loop detectado em {atual}. Encerrando.")
+                return
+            visitados.add(atual)
+
+            tipo_atual = G.nodes[atual]['type']
+
+            if tipo_atual == "switch":
+                if destino in G.neighbors(atual):
+                    tipo_enlace = G.edges[atual, destino].get("type", "")
+                    probes = [calcular_delay_por_tipo(tipo_enlace) + total_delay for _ in range(3)]
+                    ip = get_node_ip(G, destino, atual)
+                    print(f"{hop_num}: {destino} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+                    print("\nRota concluída com sucesso.\n")
+                    return
+
+                # Procura o próximo router ou switch
+                avancou = False
+                for viz in G.neighbors(atual):
+                    if viz in visitados:
+                        continue
+                    tipo_viz = G.nodes[viz]['type']
+                    if tipo_viz in ("switch", "router"):
+                        tipo_enlace = G.edges[atual, viz].get("type", "")
+                        probes = [calcular_delay_por_tipo(tipo_enlace) + total_delay for _ in range(3)]
+                        total_delay = max(probes)
+                        ip = get_node_ip(G, viz, atual)
+                        print(f"{hop_num}: {viz} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+                        hop_num += 1
+                        anterior = atual
+                        atual = viz
+                        avancou = True
+                        break
+                if not avancou:
+                    print(f"⚠️ Switch {atual} não conseguiu encaminhar. Encerrando.")
+                    return
+
+            elif tipo_atual == "router":
+                if destino in G.neighbors(atual):
+                    tipo_enlace = G.edges[atual, destino].get("type", "")
+                    probes = [calcular_delay_por_tipo(tipo_enlace) + total_delay for _ in range(3)]
+                    ip = get_node_ip(G, destino, atual)
+                    print(f"{hop_num}: {destino} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+                    print("\nRota concluída com sucesso.\n")
+                    return
+
+                nh = next_hop(atual, destino_ip, routing_tables)
+                if not nh or nh in visitados:
+                    print(f"⚠️ Sem next hop válido de {atual} para {destino_ip}.")
+                    return
+
+                tipo_enlace = G.edges[atual, nh].get("type", "")
+                probes = [calcular_delay_por_tipo(tipo_enlace) + total_delay for _ in range(3)]
+                total_delay = max(probes)
+                ip = get_node_ip(G, nh, atual)
+                print(f"{hop_num}: {nh} ({ip})   {'   '.join(str(p) + ' ms' for p in probes)}")
+                hop_num += 1
+                anterior = atual
+                atual = nh
+
+            else:
+                print(f"⚠️ Tipo de nó inesperado: {atual} ({tipo_atual}).")
+                return
+
+        print("\nRota concluída com sucesso.\n")
+
+    except Exception as e:
+        print(f"❌ Erro durante o traceroute: {e}")
 
 
 def main():
@@ -468,8 +592,8 @@ def main():
     G.add_node("c1", type="router", ip="N/A", interfaces={ "c1-a1": "172.16.2.66", "c1-a2": "172.16.2.70"})  # tem duas interfaces: 172.16.2.66 e 172.16.2.70
 
     # Conexões entre roteadores
-    G.add_edge("c1", "a1", type="serial", subnet="172.16.2.64/30")  # C1=66, A1=65
-    G.add_edge("c1", "a2", type="serial", subnet="172.16.2.68/30")  # C1=70, A2=69
+    G.add_edge("c1", "a1", type="fiber", subnet="172.16.2.64/30")  # C1=66, A1=65
+    G.add_edge("c1", "a2", type="fiber", subnet="172.16.2.68/30")  # C1=70, A2=69
 
     # Conexões entre roteadores e switches
     G.add_edge("a1", "e1a", type="ethernet", subnet="172.16.0.0/26")  # e1a: 2, gw: 1
@@ -589,6 +713,7 @@ def run_all_possible_traceroutes(G, routing_tables):
             if origem != destino:
                 print(f"\n--- Traceroute de {origem} para {destino} ---")
                 xtraceroute_routing_probe_updated(G, origem, destino, routing_tables)
+                input()
 
 def run_all_possible_pings(G, routing_tables):
     nodes = list(G.nodes)

@@ -60,7 +60,16 @@ def same_subnet(ip1, ip2, mask="255.255.255.224"):
         return net1.network_address == net2.network_address
     except Exception:
         return False
-
+"""
+def find_path_same_subnet(G, origem, destino):
+    # Retorna o caminho mais curto entre origem e destino considerando só hosts e switches (sem roteadores)
+    subgraph_nodes = [n for n in G.nodes if G.nodes[n]['type'] in ('host','switch')]
+    SG = G.subgraph(subgraph_nodes)
+    try:
+        return nx.shortest_path(SG, origem, destino)
+    except:
+        return None
+"""
 
 def find_path_same_subnet(G, origem, destino):
     # Permite hosts, switches e roteadores no caminho
@@ -70,7 +79,14 @@ def find_path_same_subnet(G, origem, destino):
         return nx.shortest_path(SG, origem, destino)
     except:
         return None
-
+"""
+def next_hop(router, destino_ip, routing_tables):
+    table = routing_tables.get(router, {})
+    for subnet, neighbor in table.items():
+        if ipaddress.IPv4Address(destino_ip) in ipaddress.IPv4Network(subnet):
+            return neighbor
+    return None  # Default route (se quiser implementar depois)
+"""
 
 def next_hop(router, destino_ip, routing_tables):
     table = routing_tables.get(router, {})
@@ -86,6 +102,109 @@ def next_hop(router, destino_ip, routing_tables):
 
 
 def xping_routing_return_routers(G, origem, destino, routing_tables, subnet_mask="255.255.255.224"):
+    def caminho_mesma_subnet(G, start, end):
+        atual = start
+        visitados = set()
+        hops = []
+
+        if G.nodes[atual]['type'] == "host":
+            vizinhos = list(G.neighbors(atual))
+            if not vizinhos:
+                return None
+            anterior = atual
+            atual = vizinhos[0]
+            hops.append((atual, get_node_ip(G, atual, anterior)))
+            visitados.add(start)
+        else:
+            anterior = None
+
+        while atual != end:
+            if atual in visitados:
+                return None
+            visitados.add(atual)
+
+            if end in G.neighbors(atual):
+                hops.append((end, get_node_ip(G, end, atual)))
+                break
+
+            avancou = False
+            for viz in G.neighbors(atual):
+                if viz not in visitados and G.nodes[viz]['type'] in ("switch", "host"):
+                    anterior = atual
+                    atual = viz
+                    hops.append((atual, get_node_ip(G, atual, anterior)))
+                    avancou = True
+                    break
+            if not avancou:
+                return None
+        return hops
+    """
+    def caminho_valido(G, start, end, routing_tables):
+        destino_ip = get_node_ip(G, end)  # IP genérico do destino
+        
+        atual = start
+        visitados = set()
+        hops = []
+
+        ip_start = get_node_ip(G, start)
+        ip_end = destino_ip
+
+        if same_subnet(ip_start, ip_end, subnet_mask):
+            return caminho_mesma_subnet(G, start, end)
+
+        if G.nodes[atual]['type'] == "host":
+            vizinhos = list(G.neighbors(atual))
+            if not vizinhos:
+                return None
+            anterior = atual
+            atual = vizinhos[0]
+            hops.append((atual, get_node_ip(G, atual, anterior)))
+            visitados.add(start)
+        else:
+            anterior = None
+
+        while atual != end:
+            if atual in visitados:
+                return None
+            visitados.add(atual)
+
+            tipo_atual = G.nodes[atual]['type']
+
+            # Só considera vizinho direto se atual for switch ou host
+            if tipo_atual in ("switch", "host") and end in G.neighbors(atual):
+                hops.append((end, get_node_ip(G, end, atual)))
+                break
+
+            if tipo_atual == "switch":
+                encaminhado = False
+                for viz in G.neighbors(atual):
+                    tipo_viz = G.nodes[viz]['type']
+                    if tipo_viz in ("router", "switch") and viz not in visitados:
+                        anterior = atual
+                        atual = viz
+                        hops.append((atual, get_node_ip(G, atual, anterior)))
+                        encaminhado = True
+                        break
+                if not encaminhado:
+                    return None
+
+            elif tipo_atual == "router":
+                if end in G.neighbors(atual):
+                    # Destino é vizinho direto do roteador
+                    hops.append((end, get_node_ip(G, end, atual)))
+                    break
+                nh = next_hop(atual, destino_ip, routing_tables)
+                if not nh:
+                    return None
+                anterior = atual
+                atual = nh
+                hops.append((atual, get_node_ip(G, atual, anterior)))
+
+            elif tipo_atual == "host":
+                return None
+
+        return hops
+    """
     def caminho_valido(G, start, end, routing_tables):
         destino_ip = get_node_ip(G, end)
         ip_start = get_node_ip(G, start)
@@ -427,9 +546,35 @@ def main():
     elif escolha == '4':
         print()
         return
+    elif escolha == '5':
+        print()
+        run_all_possible_traceroutes(G, routing_tables)
+        main()
+    elif escolha == '6':
+        print()
+        run_all_possible_pings(G, routing_tables)
+        main()
     else:
         print()
         print("Opção inválida. Por favor, escolha 1, 2, 3 ou 4.")
+
+def run_all_possible_traceroutes(G, routing_tables):
+    nodes = list(G.nodes)
+    for origem in nodes:
+        for destino in nodes:
+            if origem != destino:
+                print(f"\n--- Traceroute de {origem} para {destino} ---")
+                xtraceroute_routing_probe_updated(G, origem, destino, routing_tables)
+                input()
+
+def run_all_possible_pings(G, routing_tables):
+    nodes = list(G.nodes)
+    for origem in nodes:
+        for destino in nodes:
+            if origem != destino:
+                print(f"\n--- Ping de {origem} para {destino} ---")
+                xping_routing_return_routers(G, origem, destino, routing_tables)
+                input()
 
 
 if __name__ == "__main__":
