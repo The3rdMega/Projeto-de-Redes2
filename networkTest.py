@@ -37,7 +37,7 @@ def hierarchy_pos(G, root, width=1.0, vert_gap=0.2, vert_loc=0, xcenter=0.5, pos
         pos[root] = (xcenter, vert_loc)
     neighbors = list(G.neighbors(root))
     if parent is not None:
-        neighbors.remove(parent)  # remove back edge to parent
+        neighbors.remove(parent)  
     if len(neighbors) != 0:
         dx = width / len(neighbors)
         next_x = xcenter - width/2 - dx/2
@@ -318,19 +318,19 @@ def main():
     G.add_node("e4", type="switch", ip="172.16.1.162")
 
     # Roteadores
-    G.add_node("a1", type="router", ip="N/A", interfaces={ "a1-c1": "172.16.2.65", "a1-e1a": "172.16.0.1", "a1-e2a": "172.16.0.65"})  # interface para C1
-    G.add_node("a2", type="router", ip="N/A", interfaces={ "a2-c1": "172.16.2.69", "a2-e3": "172.16.1.129", "a2-e4": "172.16.1.161"})  # interface para C1
-    G.add_node("c1", type="router", ip="N/A", interfaces={ "c1-a1": "172.16.2.66", "c1-a2": "172.16.2.70"})  # tem duas interfaces: 172.16.2.66 e 172.16.2.70
+    G.add_node("a1", type="router", ip="N/A", interfaces={ "a1-c1": "172.16.2.65", "a1-e1a": "172.16.0.1", "a1-e2a": "172.16.0.65"})  
+    G.add_node("a2", type="router", ip="N/A", interfaces={ "a2-c1": "172.16.2.69", "a2-e3": "172.16.1.129", "a2-e4": "172.16.1.161"})  
+    G.add_node("c1", type="router", ip="N/A", interfaces={ "c1-a1": "172.16.2.66", "c1-a2": "172.16.2.70"})  
 
     # Conexões entre roteadores
-    G.add_edge("c1", "a1", type="serial", subnet="172.16.2.64/30")  # C1=66, A1=65
-    G.add_edge("c1", "a2", type="serial", subnet="172.16.2.68/30")  # C1=70, A2=69
+    G.add_edge("c1", "a1", type="serial", subnet="172.16.2.64/30")  
+    G.add_edge("c1", "a2", type="serial", subnet="172.16.2.68/30")  
 
     # Conexões entre roteadores e switches
-    G.add_edge("a1", "e1a", type="ethernet", subnet="172.16.0.0/26")  # e1a: 2, gw: 1
-    G.add_edge("a1", "e2a", type="ethernet", subnet="172.16.0.64/26")  # e2a: 66, gw: 65
-    G.add_edge("a2", "e3", type="ethernet", subnet="172.16.1.128/27")  # e3: 130, gw: 129
-    G.add_edge("a2", "e4", type="ethernet", subnet="172.16.1.160/27")  # e4: 162, gw: 161
+    G.add_edge("a1", "e1a", type="ethernet", subnet="172.16.0.0/26")  
+    G.add_edge("a1", "e2a", type="ethernet", subnet="172.16.0.64/26")  
+    G.add_edge("a2", "e3", type="ethernet", subnet="172.16.1.128/27")  
+    G.add_edge("a2", "e4", type="ethernet", subnet="172.16.1.160/27")  
 
     # Conexões hosts e switches
     G.add_edge("e1b", "h1", type="ethernet")
@@ -354,12 +354,12 @@ def main():
         "172.16.1.128/27": "c1",
         "172.16.1.160/27": "c1",
         "172.16.2.64/30": "c1",
-        "172.16.2.68/30": "c1",  # <- adicione esta linha!
+        "172.16.2.68/30": "c1",  
     },
     "a2": {
-        "172.16.1.128/27": "e3",  # h5, h6
-        "172.16.1.160/27": "e4",  # h7, h8
-        "172.16.0.0/26": "c1",    # via C1 para A1
+        "172.16.1.128/27": "e3",  
+        "172.16.1.160/27": "e4",  
+        "172.16.0.0/26": "c1",    
         "172.16.0.64/26": "c1",
         "172.16.2.68/30": "c1",
         "172.16.2.64/30": "c1",
